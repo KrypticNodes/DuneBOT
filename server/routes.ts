@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { getSolanaMonitor } from "./solana-monitor";
+import { getSolanaMonitor } from "./solana-monitor-v2";
 import { AppWebSocketServer } from "./websocket-server";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -35,15 +35,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'confirmed',
       });
     },
-    onNewMint: (walletAddress, mint) => {
+    onNewMint: (walletAddress, mint, tx) => {
       console.log(`🆕 NEW MINT ALERT: ${mint.slice(0, 8)}... in wallet ${walletAddress.slice(0, 8)}...`);
       
-      // Create alert
+      // Create alert with more detail
+      const wallet = monitor.getMonitoredWallets().find(w => w.address === walletAddress);
       const alert = storage.createAlert({
         type: 'new_mint',
         walletAddress,
         tokenMint: mint,
-        message: `New token mint detected in wallet ${walletAddress.slice(0, 8)}...`,
+        tokenName: tx.tokenName,
+        message: `${tx.isMintOperation ? '🔥 MINTING OPERATION' : '⚡ New token'} detected in ${wallet?.nickname || 'wallet'} - ${tx.amount.toLocaleString()} tokens`,
       });
 
       // Broadcast to connected clients
